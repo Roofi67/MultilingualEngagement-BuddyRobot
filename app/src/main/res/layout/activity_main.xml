@@ -20,24 +20,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <!-- Button to Browse Videos -->
-        <Button
-            android:id="@+id/button_browse"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Browse Videos"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp" />
-
-        <!-- Button to Say Hello -->
-        <Button
-            android:id="@+id/buttonHello"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Say Hello"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp" />
-
         <!-- Button to Start Listening -->
         <Button
             android:id="@+id/button_listen"
@@ -47,15 +29,31 @@
             android:padding="16dp"
             android:layout_marginBottom="16dp" />
 
-        <!-- Button to Advance -->
-        <Button
-            android:id="@+id/button_advance"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Advance"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp" />
     </LinearLayout>
+
+    <!-- TextView to display the recognized speech -->
+    <TextView
+        android:id="@+id/recognizedText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:padding="8dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- ImageView to display the recognized image -->
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="300dp"
+        android:layout_height="300dp"
+        android:scaleType="fitCenter"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@+id/recognizedText"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- ListView for Videos -->
     <ListView
@@ -68,44 +66,18 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <!-- TextView to display the recognized speech -->
-    <TextView
-        android:id="@+id/recognizedText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="20dp"
-        android:visibility="gone"
-        android:gravity="center"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- ImageView to display the recognized image -->
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="20dp"
-        android:scaleType="fitCenter"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@+id/recognizedText"
-        app:layout_constraintBottom_toTopOf="@+id/button_back"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
     <!-- Back button for all screens except main -->
     <Button
         android:id="@+id/button_back"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Back"
+        android:padding="8dp"
+        android:layout_marginStart="20dp"
         android:layout_marginBottom="20dp"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintStart_toStartOf="parent" />
 
     <!-- TextView for STT state -->
     <TextView
@@ -114,7 +86,8 @@
         android:layout_height="wrap_content"
         android:text="Speech Status"
         android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
