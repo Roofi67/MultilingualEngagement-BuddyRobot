@@ -8,6 +8,20 @@
     android:background="#80FFFFFF"
     tools:context=".MainActivity">
 
+    <!-- ImageView for Welcome Image -->
+    <ImageView
+        android:id="@+id/welcomeImage"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:src="@drawable/welcome_image"
+        android:scaleType="fitXY"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/mainButtonsContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHeight_default="percent"
+        app:layout_constraintHeight_percent="0.8" />
+
     <!-- LinearLayout for main buttons -->
     <LinearLayout
         android:id="@+id/mainButtonsContainer"
@@ -15,7 +29,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
-        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/welcomeImage"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -56,8 +70,8 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- ListView for Videos -->
-    <ListView
-        android:id="@+id/listView_files"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerView_files"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:visibility="gone"
@@ -91,3 +105,4 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+

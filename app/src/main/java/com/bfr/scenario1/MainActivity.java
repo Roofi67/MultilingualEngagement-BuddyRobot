@@ -3,15 +3,19 @@ package com.bfr.scenario1;
 import static android.os.SystemClock.sleep;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.media.ThumbnailUtils;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
@@ -48,11 +52,29 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Future;
+import android.net.Uri;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
+
+import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.bumptech.glide.Glide;
+
+import java.io.File;
+import java.util.List;
 
 public class MainActivity extends BuddyActivity {
     private static final String SUBSCRIPTION_KEY = "522c4a2067f34864aaa6a35388cc4e1c";
     private static final String SERVICE_REGION = "westeurope";
     private static final int PERMISSIONS_REQUEST_CODE = 1;
+    private List<String> videoNames = new ArrayList<>();
+    private VideoAdapter videoAdapter;
+    private RecyclerView recyclerViewFiles;
+
+    private boolean keepMood = false;
+
 
     private static final String TAG = "MainActivity";
     private ListView listViewFiles;
@@ -68,23 +90,33 @@ public class MainActivity extends BuddyActivity {
     private boolean isSpeechServiceReady = false;
     private boolean isListening = false; // Flag to check if listening is active
 
+
+    private ImageView fullScreenImage;
+
     private SpeechRecognizer recognizer;
     private boolean isProcessing = false; // To prevent duplicate processing of the same speech input
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        recyclerViewFiles = findViewById(R.id.recyclerView_files);
+        recyclerViewFiles.setLayoutManager(new GridLayoutManager(this, 3));
+        videoAdapter = new VideoAdapter(this, videoNames, this::playVideo);  // Initialize adapter
+        recyclerViewFiles.setAdapter(videoAdapter);  // Set adapter to RecyclerView
+
         initViews();
-        configureListeners();
+        //configureListeners();
         checkPermissions();
     }
 
     private void initViews() {
         mainButtonsContainer = findViewById(R.id.mainButtonsContainer);
+        fullScreenImage = findViewById(R.id.welcomeImage);
         Button buttonListen = findViewById(R.id.button_listen);
-        listViewFiles = findViewById(R.id.listView_files);
         recognizedText = findViewById(R.id.recognizedText);
         imageView = findViewById(R.id.imageView);
         buttonBack = findViewById(R.id.button_back);
@@ -92,6 +124,7 @@ public class MainActivity extends BuddyActivity {
 
         buttonListen.setOnClickListener(v -> {
             mainButtonsContainer.setVisibility(View.GONE);
+            fullScreenImage.setVisibility(View.GONE);
             startContinuousRecognition();
         });
 
@@ -100,12 +133,14 @@ public class MainActivity extends BuddyActivity {
                 stopListening();
             }
             showMainButtons();
+            fullScreenImage.setVisibility(View.VISIBLE);
+            buttonBack.setVisibility(View.GONE);
         });
     }
 
-    private void configureListeners() {
-        listViewFiles.setOnItemClickListener(this::onVideoSelected);
-    }
+//    private void configureListeners() {
+//        listViewFiles.setOnItemClickListener(this::onVideoSelected);
+//    }
 
     private void checkPermissionsAndLoadFiles() {
         Log.i(TAG, "checkPermissionsAndLoadFiles: Checking permissions for READ_EXTERNAL_STORAGE");
@@ -119,39 +154,24 @@ public class MainActivity extends BuddyActivity {
     }
 
     private void loadVideoFiles() {
-        Log.i(TAG, "loadVideoFiles: Loading video files from directory.");
         File directory = new File(folderPath);
-        ArrayList<String> videoNames = new ArrayList<>();
-        if (directory.isDirectory()) {
-            File[] files = directory.listFiles();
-            if (files != null) {
+        if (directory.exists() && directory.isDirectory()) {
+            File[] files = directory.listFiles(file -> file.getName().endsWith(".mp4"));
+            if (files != null && files.length > 0) {
+                videoNames.clear();  // Clear the previous list of videos
                 for (File file : files) {
-                    if (file.getName().endsWith(".mp4")) {
-                        videoNames.add(file.getName());
-                        Log.d(TAG, "Loaded video file: " + file.getName());
-                    }
+                    videoNames.add(file.getAbsolutePath());  // Add absolute paths of video files
                 }
+                videoAdapter.notifyDataSetChanged();  // Notify adapter to refresh RecyclerView
+                recyclerViewFiles.setVisibility(View.VISIBLE);  // Make sure RecyclerView is visible
+            } else {
+                Toast.makeText(this, "No videos found.", Toast.LENGTH_LONG).show();
             }
-            runOnUiThread(() -> {
-                if (!videoNames.isEmpty()) {
-                    Log.i(TAG, "loadVideoFiles: Videos found. Updating ListView.");
-                    ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, videoNames);
-                    listViewFiles.setAdapter(adapter);
-                    listViewFiles.setVisibility(View.VISIBLE);
-                    mainButtonsContainer.setVisibility(View.GONE);
-                    showBackButton();
-                } else {
-                    Log.i(TAG, "loadVideoFiles: No videos found.");
-                    Toast.makeText(this, "No videos found.", Toast.LENGTH_LONG).show();
-                }
-            });
         } else {
-            runOnUiThread(() -> {
-                Log.i(TAG, "loadVideoFiles: Directory not found.");
-                Toast.makeText(this, "Directory not found.", Toast.LENGTH_LONG).show();
-            });
+            Toast.makeText(this, "Directory not found.", Toast.LENGTH_LONG).show();
         }
     }
+
 
 
     private void onVideoSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -166,10 +186,7 @@ public class MainActivity extends BuddyActivity {
     private void playVideo(String filePath) {
         try {
             File videoFile = new File(filePath);
-            Log.d(TAG, "Attempting to play video at path: " + videoFile.getAbsolutePath());  // Log the absolute path
-
             if (!videoFile.exists()) {
-                Log.e(TAG, "File does not exist: " + filePath);
                 Toast.makeText(this, "File not found", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -180,7 +197,6 @@ public class MainActivity extends BuddyActivity {
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(intent);
         } catch (Exception e) {
-            Log.e(TAG, "playVideo: Exception: " + e.getMessage(), e);
             Toast.makeText(this, "Error playing video", Toast.LENGTH_SHORT).show();
         }
     }
@@ -336,59 +352,19 @@ public class MainActivity extends BuddyActivity {
         }
         isProcessing = true;
 
-        // Normalize the input to lower case and handle case sensitivity and spaces.
-        final String normalizedSpeechText = speechText.toLowerCase().trim();
 
-        if (normalizedSpeechText.startsWith("play ")) {
-            // Extract video name from the command, removing "play " and trimming any spaces
-            final String videoNameFromCommand = normalizedSpeechText.substring(5).trim().replaceAll("\\s+", "");
-
-            // Ensure the video list is loaded before proceeding
-            if (listViewFiles.getAdapter() == null) {
-                Log.i(TAG, "Loading videos because the video list is not yet available.");
-                checkPermissionsAndLoadFiles(); // Load the video files
-            }
-
-            // Delayed execution to wait for file load and list update
-            handler.postDelayed(() -> {
-                ArrayAdapter<String> adapter = (ArrayAdapter<String>) listViewFiles.getAdapter();
-                if (adapter != null) {
-                    boolean found = false;
-                    for (int i = 0; i < adapter.getCount(); i++) {
-                        String item = adapter.getItem(i); // Get the actual file name from the list
-
-                        // Extract the file name without extension and remove spaces to match the speech command
-                        String fileNameWithoutExtension = item.substring(0, item.lastIndexOf('.')).replaceAll("\\s+", "");
-
-                        // Compare the normalized file name and the command name, ignoring case
-                        if (fileNameWithoutExtension.equalsIgnoreCase(videoNameFromCommand)) {
-                            Log.d(TAG, "Video found: " + videoNameFromCommand + ", simulating click.");
-                            onVideoSelected(listViewFiles, null, i, i); // Simulate video selection
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found) {
-                        Log.e(TAG, "Video not found: " + videoNameFromCommand);
-                        runOnUiThread(() -> Toast.makeText(this, "Video not found: " + videoNameFromCommand, Toast.LENGTH_SHORT).show());
-                    }
-                } else {
-                    Log.e(TAG, "Video list not available yet. Cannot play video.");
-                    runOnUiThread(() -> Toast.makeText(this, "Video list not available.", Toast.LENGTH_SHORT).show());
-                }
-            }, 1000); // Adjust delay based on file load time
-        } else if (normalizedSpeechText.contains("show the videos")) {
+        if (speechText.contains("show")) {
             Log.i(TAG, "Command to show videos recognized.");
-            runOnUiThread(this::checkPermissionsAndLoadFiles);
-        } else if (normalizedSpeechText.contains("remove the videos")) {
+            runOnUiThread(this::loadVideoFiles);
+        } else if (speechText.contains("remove")) {
             Log.i(TAG, "Command to remove videos recognized.");
             runOnUiThread(() -> {
-                listViewFiles.setVisibility(View.GONE);  // Hide the video list
-                recognizedText.setText("Videos list removed.");
+                recyclerViewFiles.setVisibility(View.GONE);  // Hide the video list
+                //showMainButtons();  // Show the main buttons again
+                recognizedText.setText("Videos list  removed.");
                 recognizedText.setVisibility(View.VISIBLE);
             });
-        } else if (normalizedSpeechText.contains("move forward")) {
+        } else if (speechText.contains("move")) {
             Log.i(TAG, "Command to move forward recognized.");
             runOnUiThread(() -> {
                 moveBuddy(0.3F, 0.2F, () -> {
@@ -397,17 +373,8 @@ public class MainActivity extends BuddyActivity {
                     continueListening();
                 });
             });
-        } else if (normalizedSpeechText.contains("turn left")) {
+        } else if (speechText.contains("left")) {
             Log.i(TAG, "Command to rotate left recognized.");
-            runOnUiThread(() -> {
-                rotateBuddy(90, 110, () -> {
-                    recognizedText.setText("Rotate successful");
-                    showBackButton();
-                    continueListening();
-                });
-            });
-        } else if (normalizedSpeechText.contains("turn right")) {
-            Log.i(TAG, "Command to rotate right recognized.");
             runOnUiThread(() -> {
                 rotateBuddy(90, -110, () -> {
                     recognizedText.setText("Rotate successful");
@@ -415,12 +382,23 @@ public class MainActivity extends BuddyActivity {
                     continueListening();
                 });
             });
+        } else if (speechText.contains("right")) {
+            Log.i(TAG, "Command to rotate right recognized.");
+            runOnUiThread(() -> {
+                rotateBuddy(90, 110, () -> {
+                    recognizedText.setText("Rotate successful");
+                    showBackButton();
+                    continueListening();
+                });
+            });
         } else {
-            handleGreetings(normalizedSpeechText);
+            handleGreetings(speechText);
         }
 
         isProcessing = false;
     }
+
+
     private void playVideoByName(String videoName) {
         // Log the original video name from the speech command
         Log.e(TAG, "Original video name from speech command: " + videoName);
@@ -491,6 +469,8 @@ public class MainActivity extends BuddyActivity {
                 sayText("Ciao! Come stai? Sono Buddy, il tuo amichevole compagno robot." +
                         " Spero che tu stia passando una buona giornata." +
                         " Ti auguro una giornata ancora più luminosa. Buona fortuna!", "it-IT-IsabellaMultilingualNeural");
+                keepMood = true;
+                setMoodTemporarily(FacialExpression.HAPPY);
                 return;  // Return after handling to avoid further greetings
             }
 
@@ -499,6 +479,7 @@ public class MainActivity extends BuddyActivity {
                 sayText("Bonjour! Comment ça va? Je suis Buddy, ton compagnon robot amical." +
                         " J'espère que tu passes une bonne journée." +
                         " Je te souhaite une journée encore plus lumineuse. Bonne chance!", "it-IT-IsabellaMultilingualNeural");
+                setMoodTemporarily(FacialExpression.HAPPY);
                 return;  // Return after handling to avoid further greetings
             }
 
@@ -507,9 +488,19 @@ public class MainActivity extends BuddyActivity {
                 sayText("Hello! how are you? I'm Buddy, your friendly robot companion." +
                         " I hope you are having a good day." +
                         " I wish you a brighter day ahead. Good luck", "it-IT-IsabellaMultilingualNeural");
+                setMoodTemporarily(FacialExpression.HAPPY);
                 return;  // Return after handling to avoid further greetings
             }
         }
+
+//        if (keepMood) {
+//            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+//                BuddySDK.UI.setMood(FacialExpression.NEUTRAL); // Set to neutral after 3 seconds
+//                keepMood = false; // Reset the flag
+//            }, 3000); // 3000 milliseconds for 3 seconds
+//        }
+
+        isProcessing = false;
     }
 
     private void sayText(String text, String voiceName) {
@@ -522,14 +513,18 @@ public class MainActivity extends BuddyActivity {
                 new Thread(() -> {
                     try {
                         Thread.sleep(500);
+                        //BuddySDK.UI.setMood(FacialExpression.HAPPY);
                         BuddySDK.UI.setLabialExpression(LabialExpression.SPEAK_HAPPY);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 }).start();
 
+
                 SpeechSynthesisResult result = synthesizer.SpeakText(text);
                 BuddySDK.UI.setLabialExpression(LabialExpression.NO_EXPRESSION);
+
+
 
                 result.close();
                 synthesizer.close();
@@ -591,13 +586,87 @@ public class MainActivity extends BuddyActivity {
             }
         }
     }
+    private void setMoodTemporarily(FacialExpression expression) {
+        BuddySDK.UI.setMood(expression);
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            BuddySDK.UI.setMood(FacialExpression.NEUTRAL); // Change NEUTRAL to your default mood if different
+        }, 3000);
+    }
+
+
+
+    public class VideoAdapter extends RecyclerView.Adapter<VideoAdapter.VideoViewHolder> {
+        private Context context;
+        private List<String> videoPaths;
+        private LayoutInflater inflater;
+        private OnVideoSelectedListener listener;
+
+        // Constructor with listener
+        public VideoAdapter(Context context, List<String> videoPaths, OnVideoSelectedListener listener) {
+            this.context = context;
+            this.videoPaths = videoPaths;
+            this.inflater = LayoutInflater.from(context);
+            this.listener = listener;
+        }
+
+        // Constructor without listener
+        public VideoAdapter(Context context, List<String> videoPaths) {
+            this(context, videoPaths, null); // Call the main constructor, but pass null for listener
+        }
+
+        @Override
+        public VideoViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+            View view = inflater.inflate(R.layout.video_item, parent, false);
+            return new VideoViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(VideoViewHolder holder, int position) {
+            String videoPath = videoPaths.get(position);
+
+            // Create a video thumbnail
+            Bitmap thumbnail = ThumbnailUtils.createVideoThumbnail(videoPath, MediaStore.Images.Thumbnails.MINI_KIND);
+            holder.thumbnail.setImageBitmap(thumbnail);
+
+            // Set up click listener for video selection
+            if (listener != null) {
+                holder.itemView.setOnClickListener(v -> listener.onVideoSelected(videoPath));
+            }
+
+            // Load the video thumbnail using Glide or another method
+            Uri uri = Uri.fromFile(new File(videoPath));
+            Glide.with(context)
+                    .load(uri)
+                    .centerCrop()  // Center-crop the thumbnail
+                    .into(holder.thumbnail);
+        }
+
+        @Override
+        public int getItemCount() {
+            return videoPaths.size();
+        }
+
+        public class VideoViewHolder extends RecyclerView.ViewHolder {
+            ImageView thumbnail;
+
+            public VideoViewHolder(View itemView) {
+                super(itemView);
+                thumbnail = itemView.findViewById(R.id.video_thumbnail);
+            }
+        }
+    }
+
+    public interface OnVideoSelectedListener {
+        void onVideoSelected(String videoPath);
+    }
+
 
     private void showMainButtons() {
         mainButtonsContainer.setVisibility(View.VISIBLE);
-        listViewFiles.setVisibility(View.GONE);
+        //listViewFiles.setVisibility(View.GONE);
         recognizedText.setVisibility(View.GONE);
         imageView.setVisibility(View.GONE);
-        buttonBack.setVisibility(View.GONE);
+        //buttonBack.setVisibility(View.GONE);
         sttState.setVisibility(View.GONE);
     }
 
