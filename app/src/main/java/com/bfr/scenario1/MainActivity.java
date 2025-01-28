@@ -66,7 +66,7 @@ import java.io.File;
 import java.util.List;
 
 public class MainActivity extends BuddyActivity {
-    private static final String SUBSCRIPTION_KEY = "522c4a2067f34864aaa6a35388cc4e1c";
+    private static final String SUBSCRIPTION_KEY = "GET CREDENTIALS";
     private static final String SERVICE_REGION = "westeurope";
     private static final int PERMISSIONS_REQUEST_CODE = 1;
     private List<String> videoNames = new ArrayList<>();
